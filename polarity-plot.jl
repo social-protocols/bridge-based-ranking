@@ -1,3 +1,5 @@
+using GLMakie
+
 alpha = .85
 
 function userLegend(f, userColors, userColorIndex)

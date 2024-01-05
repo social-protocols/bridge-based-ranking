@@ -136,6 +136,8 @@ function factorizeMatrixIntercepts(Y, k, lambda)
   # lossMasked(model(Y), Y, lambda)
 
 
+  losses = []
+
   nEpochs = 100
   p = Progress(nEpochs)
 

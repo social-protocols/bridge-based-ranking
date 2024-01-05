@@ -9,7 +9,6 @@ include("change-basis.jl")
 include("polarity-plot.jl")
 include("create-training-set.jl")
 include("create-training-set-buterin.jl")
-include("plot.jl")
 include("community-notes-data.jl")
 include("entropy-based-dimension-reduction.jl")
 
@@ -48,19 +47,19 @@ model = factorizeMatrixIntercepts(Y, 1, lambda)
 
 # Plot the polarity factor against the common ground factor (the intercepts)
 # The intercept for users doesn't mean much, but helpful items should have a positive intercept, and unhelpful items should have a negative intercept
+# However, with synthetic data we sometimes get weird results where there is a linear relationship between the slope and intercept 
 polarityPlot([model.W .+ model.μ model.B .+ model.μ], [model.X .+ model.μ;	model.C .+ model.μ], s.userColors, s.itemColors, userColorIndex = userColorIndex, itemColorIndex = itemColorIndex, title="Bridge-Based Ranking: Synthetic Data (1-D)")
-
 
 # Now use an alternative algorithm: matrix factorization with two dimensions but without intercepts. The idea is that one dimension will correspond roughly to the polarity factor, and one dimension will correspond to the common ground factor.
 model = factorizeMatrixNoIntercepts(Y, 2, lambda)
 
 # However, the results will be arbitrary rotated in 2d space. We use the changeBasis function to find the min/max entropy axes and make these correspond to the horizontal/vertical.
-(b, entropyPlotData) = changeBasis(model.W, model.X, itemIds);
+(b, entropyPlotData) = changeBasis(model.W, model.X, []);
 
 polarityPlot(model.W * b, b' * model.X, s.userColors, s.itemColors, userColorIndex = userColorIndex, itemColorIndex = itemColorIndex, title="2D Bridge-Based Ranking: Synthetic Data")
 
 scene = polarityPlotWithBasis(model.W, model.X, model.W * b, b' * model.X, s.userColors, s.itemColors, userColorIndex = userColorIndex, itemColorIndex = itemColorIndex, title="@d Bridge-Based Ranking: Synthetic Data")
-save("synthetic-data-polarity-plot-with-basis-change.png", scene)
+save("plots/synthetic-data-polarity-plot-with-basis-change.png", scene)
 
 
 
@@ -95,7 +94,6 @@ polarityPlot(model.W*b, b'model.X, userColors, itemColors, itemColorIndex=itemCo
 
 
 
-
 # Now, use community notes data
 
 (Y, userColors, itemColors, userIds, itemIds) = loadCommunityNotesRatingsMatrix();
@@ -114,7 +112,7 @@ polarityPlot([model.W .+ model.μ model.B .+ model.μ ], [model.X .+ model.μ; m
 
 
 scene = polarityPlotItems([model.X .+ model.μ; model.C .+ model.μ ], itemColors, itemColorIndex=itemColorIndex, title="Community Notes Polarity Plot (Notes)")
-save("community-notes-items-polarity-plot-1d.png", scene)
+save("plots/community-notes-items-polarity-plot-1d.png", scene)
 
 
 # Then using the two-dimensional model without intercepts
@@ -133,17 +131,17 @@ scene = polarityPlot(model.W * b, b' * model.X, map(c -> :gray, model.W[:,1]), i
 
 scene = polarityPlotWithBasis(model.W, model.X, model.W * b, b' * model.X, map(c -> :gray, model.W[:,1]), itemColors, itemColorIndex=itemColorIndex, title="2D Bridge-Based Ranking: Community Notes (Sample)")
 
-save("community-notes-polarity-plot-with-basis-change.png", scene)
+save("plots/community-notes-polarity-plot-with-basis-change.png", scene)
 
 scene = polarityPlotItems(b' * model.X, itemColors, itemColorIndex=itemColorIndex, title="Community Notes Polarity Plot (Notes)")
-save("community-notes-items-polarity-plot.png", scene)
+save("plots/community-notes-items-polarity-plot.png", scene)
 
 
 # model = factorizeMatrixNoIntercepts(Matrix(Y1), 2, lambda);
 # scene = polarityPlot(model.W, model.X, map(c -> :gray, model.W[:,1]), itemColors1, itemColorIndex=itemColorIndex, title="Community Notes Sample Chart")
 
-scene = polarityPlotUsers(model.W * b, map(c -> :gray, W[:,1]), title="Community Notes Polarity Plot (Users)")
-save("community-notes-users-polarity-plot.png", scene)
+scene = polarityPlotUsers(model.W * b, map(c -> :gray, model.W[:,1]), title="Community Notes Polarity Plot (Users)")
+save("plots/community-notes-users-polarity-plot.png", scene)
 
 
 
