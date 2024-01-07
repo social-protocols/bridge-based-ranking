@@ -5,10 +5,14 @@ using SparseArrays
 
 using SQLite
 
-
-function loadCommunityNotesRatingsMatrix()
+function loadCommunityNotesRatingsMatrix(; table = "sampleDataSet2", coreOnly = false)
 	db = SQLite.DB("~/community-notes-data/community-notes-data.sqlite")
-	d = DataFrame(DBInterface.execute(db, "SELECT sampleDataSet.*, currentStatus, enrollmentState FROM sampleDataSet2 sampleDataSet join currentStatus using (noteId) join userEnrollment on (participantId = raterParticipantId) where version = 2"))
+
+	coreOnlyQuery = coreOnly ? " and modelingPopulation = 'CORE'" : "" 
+	query = "SELECT sampleDataSet.*, currentStatus, enrollmentState FROM $(table) sampleDataSet join currentStatus using (noteId) join userEnrollment on (participantId = raterParticipantId) 
+	where version = 2$(coreOnlyQuery)"
+
+	d = DataFrame(DBInterface.execute(db, query))
 
 
 	unique_users = unique(d.raterParticipantId)

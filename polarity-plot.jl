@@ -1,6 +1,7 @@
 using GLMakie
 
 alpha = .85
+grayAlpha = .3
 
 function userLegend(f, userColors, userColorIndex)
 	uniqueColors = ( unique(userColors) )
@@ -40,15 +41,23 @@ function itemLegend(f, itemColors, itemColorIndex)
 end
 
 
+a = :red
+
+a == :red ? 1 : 0
+
+
+
 function plotUsers(pos, W, userColors; title="Users")
-	scatter(pos, W, color=map(c -> (c,alpha), userColors), markersize = 10, marker = :utriangle,
+	colors = map(c -> (c,c == :gray ? grayAlpha : alpha), userColors)
+	scatter(pos, W, color=colors, markersize = 10, marker = :utriangle,
 		 axis = (; title=title, xlabel = "polarity factor", ylabel = "common ground factor")
 	)
 
 end
 
 function plotItems(pos, X, itemColors; itemColorIndex=nothing, title="Items")
-	scatter(pos, X', color=map(c -> (c,alpha), itemColors), markersize = 8, marker = :circle,
+	colors = map(c -> (c,c == :gray ? grayAlpha : alpha), itemColors)
+	scatter(pos, X', color=colors, markersize = 8, marker = :circle,
 		 axis = (; title=title, xlabel = "polarity factor", ylabel = "common ground factor")
 	)
 end
@@ -190,7 +199,6 @@ polarityPlot3d = function(W, colors, title="Dimension 1 vs. Dimension 2")
 	f = Figure()
 	pos = f[1,1]
 	s1 = scatter(pos, W[:,1], W[:,2], W[:,3], markersize = 10, marker = :utriangle ,color=colors, transparency=true)
-
 
 	s1
 end

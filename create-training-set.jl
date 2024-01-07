@@ -187,7 +187,6 @@ createTrainingSet = function(n, m, baseProb)
 	votes = rand.(Bernoulli.(baseProb .* rates))
 	upvotes = rand.(Bernoulli.(votes .* probabilities))
 
-
 	userColors = repeat([:magenta; :red; :cyan; :blue; :cyan; :blue; :blue; :blue; ],n)
 	itemColors = repeat([:magenta; :red; :cyan; :blue],m)
 

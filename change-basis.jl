@@ -4,12 +4,12 @@ using MultivariateStats
 
 """
 
-Changes the basis so that the right side of the chart actually corresponds to right-wing items. Uses a list of known left-wing items -- which all should have a very negative polarity
+Changes the basis so that the right side of the chart actually corresponds to right-wing items from Community Notes. Uses a list of known left-wing items -- which all should have a very negative polarity
 factor -- and flips the axis if they have an average positive polarity
 
 """
 
-function alignLeftRight(X, b, itemIds)
+function swapLeftRight(X, itemIds)
 
 	knownLeftWingItems = [
 		  "1694922274426835377"
@@ -28,15 +28,7 @@ function alignLeftRight(X, b, itemIds)
 	indices = findall(item -> in(item, knownLeftWingItems), itemIds)
 	leftWing = mean(X[1,indices])
 
-
-	println("Left wing mean", leftWing, b)
-	if leftWing > 0 
-		b[:,1] = -1 * b[:,1]
-		println("Flipping axis", b)
-
-	end
-
-	return b
+	return leftWing > 0 ? -1 : 1
 end
 
 """
@@ -59,9 +51,18 @@ function changeBasis(W, X, itemIds)
 	highestEntropy = 0
 
 
-	entropyChartData = zeros(360,2)
-	entropyChartData2 = zeros(360,2)
-	for a in 0:1:359
+	# This fairly simplistic algorithm finds the basis vector with the
+	# lowest/highest entropy respectively. By the entropy of a vector, we mean
+	# the entropy of users after being projected onto this vector. The
+	# algorithm finds this vector simply by trying unit vectors in different
+	# directions (simply going around in a circle) and finding the vectors with
+	# the highest/lowest entropy. A half circle is sufficient because the
+	# entropy of a vector will be equal to the entropy of the negative of that
+	# vector.
+
+
+	entropyChartData = zeros(180,2)
+	for a in 0:1:179
 		basis=[cos(a * π/180), sin(a * π / 180)]
 
 
@@ -78,12 +79,7 @@ function changeBasis(W, X, itemIds)
 			worstBasis = basis
 		end
 
-		# push!(entropyChartData, e*basis)
-
-		# println("$(a) degrees: $(basis): $(var(converted)), $(e)")
 		entropyChartData[a+1,:] = e*basis
-		entropyChartData2[a+1,:] = basis
-
 	end
 
 	m = mean(W * d.Vt' * bestBasis)
@@ -108,38 +104,10 @@ function changeBasis(W, X, itemIds)
 
 
 	# Now flip the axis based on known left-wing items
-	bb = alignLeftRight(bb' * X, bb, itemIds)
+	# bb = alignLeftRight
 
+	bb[:,1] = bb[:,1] * swapLeftRight(bb' * X, itemIds)
 
 	return (bb, entropyChartData)
-end
-
-
-function binaryentropy(p)
-  if p == 1
-    return 0
-  end
-
-  if p == 0
-    return 0
-  end
-
-  -(p * log2(p)) -(1-p)*log2(1-p)
-
-end
-
-
-function dimensionEntropy(xs)
-	positives = [x for x in xs if x > 0]
-	negatives = [x for x in xs if x < 0]
-	length(positives)
-	length(negatives)
-
-	up = sum(positives)
-	down = abs(sum(negatives))
-
-	p = up / (up + down)
-	p
-	return  binaryentropy(p)
 end
 

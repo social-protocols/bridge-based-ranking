@@ -20,11 +20,10 @@ n = 400
 m = 200
 lambda = .08
 
-Random.seed!(5)
+Random.seed!(6)
 s = createTrainingSet(trunc(Int,n/8), trunc(Int,m/8),.1); 
 Y = s.upvotes .+ s.votes .* (s.upvotes .- 1)
 M = s.votes
-
 
 userColorIndex = Dict(
 	:cyan => "Good-Faith Liberal",
@@ -41,7 +40,7 @@ itemColorIndex = Dict(
 	:title => "Item Type"
 )
 
-lambda = 0.08
+lambda = .15
 # First, do Matrix factorization with one dimension -- the same algorithm used by community notes.
 model = factorizeMatrixIntercepts(Y, 1, lambda)
 
@@ -53,6 +52,12 @@ polarityPlot([model.W .+ model.μ model.B .+ model.μ], [model.X .+ model.μ;	mo
 # Now use an alternative algorithm: matrix factorization with two dimensions but without intercepts. The idea is that one dimension will correspond roughly to the polarity factor, and one dimension will correspond to the common ground factor.
 model = factorizeMatrixNoIntercepts(Y, 2, lambda)
 
+
+# include("matrix-factorization.jl")
+# model = factorizeMatrixNoIntercepts(Y, 3, .08)
+# mean(Y)
+# model.μ
+
 # However, the results will be arbitrary rotated in 2d space. We use the changeBasis function to find the min/max entropy axes and make these correspond to the horizontal/vertical.
 (b, entropyPlotData) = changeBasis(model.W, model.X, []);
 
@@ -60,7 +65,6 @@ polarityPlot(model.W * b, b' * model.X, s.userColors, s.itemColors, userColorInd
 
 scene = polarityPlotWithBasis(model.W, model.X, model.W * b, b' * model.X, s.userColors, s.itemColors, userColorIndex = userColorIndex, itemColorIndex = itemColorIndex, title="@d Bridge-Based Ranking: Synthetic Data")
 save("plots/synthetic-data-polarity-plot-with-basis-change.png", scene)
-
 
 
 # Do the same analysis using a data set created by Vitalik Buterin for his own simplified implementation described here:
@@ -105,8 +109,8 @@ itemColorIndex = Dict(
 	:title => "Commmunity Notes Status"
 )
 
-
 # First using the single-dimension with intercept model
+lambda = .15
 model = factorizeMatrixIntercepts(Matrix(Y), 1, lambda)
 polarityPlot([model.W .+ model.μ model.B .+ model.μ ], [model.X .+ model.μ; model.C .+ model.μ ], map(c -> :gray, model.W[:,1]), itemColors, itemColorIndex=itemColorIndex, title="Community Notes Data (1D)")
 
@@ -117,10 +121,9 @@ save("plots/community-notes-items-polarity-plot-1d.png", scene)
 
 # Then using the two-dimensional model without intercepts
 model = factorizeMatrixNoIntercepts(Matrix(Y), 2, lambda);
-
-
 # Again changing basis to make the horizontal align with the polarity factor and the vertical with the "common ground factor"
 (b, entropyPlotData) = changeBasis(model.W, model.X, itemIds);
+
 
 # X = b' * model.X
 # findall(item -> item > 1.0, X[1,:])
