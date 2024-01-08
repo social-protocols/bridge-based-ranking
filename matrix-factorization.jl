@@ -55,9 +55,7 @@ end
 
 Flux.@functor MatrixFacorizationModel
 
-
-
-function lossMaskedNorm(Y_hat, Y)
+function lossMaskedSqrt(Y_hat, Y)
   err = ( (Y .!= 0) .* (Y .- Y_hat) )
   return norm( err )
 end
@@ -114,38 +112,21 @@ end
 # penalty(1, model)
 # lossMasked(Y_hat, Y)
 
-function penaltyCNOld(lambda, model)
-  # return 0
-  # Lambda for intercepts is 5-times greater than lambda for slopes.
-  # Mentioned in the birdwatch papaer: https://github.com/twitter/communitynotes/blob/main/birdwatch_paper_2022_10_27.pdf 
-  # m = sum((Y .!= 0))
-
-
-
-  # return (lambda) * ( sum(model.W .^ 2) + sum(model.X .^ 2) + sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-
-
-  # return (lambda) * ( sum(model.W .^ 2) + sum(model.X .^ 2) ) + lambda * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-
-
-
-  # return lambda * ( sum(model.W .^ 2) + sum(model.X .^ 2) ) + lambda * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-  return (lambda/5) * ( sum(model.W .^ 2) + sum(model.X .^ 2) ) + lambda * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-
-  # return  (
-  #   ((lambda/5)^2) * ( sum(model.W .^ 2) + sum(model.X .^ 2) )  + (lambda^2) * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-  # ) ^ (1/2)
-  # return  (
-  #   ((lambda/5)^2) * ( sum(model.W .^ 2) + sum(model.X .^ 2) )  + (lambda^2) * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-  # ) ^ (1/2)
-end
-
 function penalty(lambda, model)
   (n, k) = size(model.W)
   (k, m) = size(model.X)
 
   return lambda * m * ( sum(model.W .^ 2) + sum(model.B .^ 2) + sum(model.μ .^ 2 ) ) + lambda * n * ( sum(model.X .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
 end
+
+
+
+function penaltyCNOld(lambda, model)
+  # The loss function from the birdwatch paper
+  # Where weights for intercepts are 5x other weights
+  return (lambda) * ( sum(model.W .^ 2) + sum(model.X .^ 2) ) + lambda*5 * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+end
+
 
 function penaltyCN(lambda, model)
   (n, k) = size(model.W)
@@ -210,7 +191,9 @@ Adding all the regularization terms
 Factorize the matrix but without intercepts (all intercepts = 0)
 
 """
-function factorizeMatrixNoIntercepts(Y, k, lambda)
+function factorizeMatrixNoIntercepts(Y, k, lambda, altModel)
+
+  # (Y, itemMeans) = meanNormalize(Y)
 
   (n, m) = size(Y) 
   model = MatrixFacorizationModelNointercept(n,m,k)
@@ -223,7 +206,7 @@ function factorizeMatrixNoIntercepts(Y, k, lambda)
   Optimisers.freeze!(optim.C)
   Optimisers.freeze!(optim.μ)
 
-  train(model, optim, Y, lambda, false)
+  train(model, optim, Y, lambda, altModel)
 end
 
 
@@ -235,7 +218,7 @@ Factorize the matrix including intercepts for users and items and a global inter
 
 function factorizeMatrixIntercepts(Y, k, lambda, altModel)
 
-  (Y, itemMeans) = meanNormalize(Y)
+  # (Y, itemMeans) = meanNormalize(Y)
   (n, m) = size(Y) 
   model = MatrixFacorizationModel(n,m,k)
 
@@ -254,7 +237,6 @@ end
 
 
 
-
 function train(model, optim, Y, lambda, altModel)
   losses = []
 
@@ -263,12 +245,15 @@ function train(model, optim, Y, lambda, altModel)
 
 
   if altModel
-    lossFunction = lossMaskedNorm
+    lossFunction = lossMaskedSqrt
     penaltyFunction = penaltyCNOld
   else
     lossFunction = lossMaskedSSE
-    penaltyFunction = penaltyCN
+    penaltyFunction = penalty
+    # lossFunction = lossMaskedSqrt
+    # penaltyFunction = penaltySqrt
   end
+
 
 
   for epoch in 1:nEpochs
