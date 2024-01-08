@@ -160,7 +160,8 @@ createTrainingSet = function(n, m, baseProb)
 	p3 = profileToMatrix(profile3)
 	p4 = profileToMatrix(profile4)
 
-	users = repeat([p1 p2 p3 p4 p3 p4 p4 p4], outer=[1,trunc(Int, n)])
+	# users = repeat([p1 p2 p3 p4 p3 p4 p4 p4], outer=[1,trunc(Int, n)])
+	users = repeat([p1 p2 p3 p4 p1 p2 p3 p4], outer=[1,trunc(Int, n)])
 
 	t1 = typeToMatrix(type1)
 	t2 = typeToMatrix(type2)
@@ -187,7 +188,8 @@ createTrainingSet = function(n, m, baseProb)
 	votes = rand.(Bernoulli.(baseProb .* rates))
 	upvotes = rand.(Bernoulli.(votes .* probabilities))
 
-	userColors = repeat([:magenta; :red; :cyan; :blue; :cyan; :blue; :blue; :blue; ],n)
+	userColors = repeat([:magenta; :red; :cyan; :blue; :magenta; :red; :cyan; :blue; ],n)
+	# userColors = repeat([:magenta; :red; :cyan; :blue; :cyan; :blue; :blue; :blue; ],n)
 	itemColors = repeat([:magenta; :red; :cyan; :blue],m)
 
 	return (users=users, items=items, votes=votes', upvotes=upvotes', userColors=userColors, itemColors=itemColors)

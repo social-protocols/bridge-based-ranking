@@ -4,6 +4,16 @@ using Optimisers
 using ProgressMeter
 using LinearAlgebra
 
+
+function meanNormalize(Y)
+
+  itemMeans = sum(Y, dims=1) ./ sum(Y .!= 0, dims=1)
+  userMeans = sum(Y, dims=2) ./ sum(Y .!= 0, dims=2)
+
+  return (Y .- userMeans .* (Y .!= 0), userMeans)
+end
+
+
 """
 A matrix factorization model, where the matrix factorizes to W*X .+ B .+ C + u
 
@@ -21,9 +31,10 @@ struct MatrixFacorizationModel
 end
 
 
+
 MatrixFacorizationModel(n, m, k) =
   MatrixFacorizationModel(
-    rand(n,k), rand(n,1), rand(k,m), rand(1,m), [rand()]
+    rand(n,k)*.1 .- .05, rand(n,1)*.1 .- .05, rand(k,m)*.1 .- .05, rand(1,m)*.1 .- .05, [rand()*.05]
   )
 
 """
@@ -33,9 +44,8 @@ MatrixFacorizationModelNointercept instantiates a model where all intercepts are
 MatrixFacorizationModelNointercept(n, m, k) =
   MatrixFacorizationModel(
     # rand(n,k), rand(n,1), rand(k,m), rand(m,1)
-    rand(n,k), repeat([0],n), rand(k,m), repeat([0],m)', [0]
+    rand(n,k)*.1 .- .05, repeat([0],n), rand(k,m)*.1 .- .05, repeat([0],m)', [0]
   )
-
 
 
 (model::MatrixFacorizationModel)(Y) = begin
@@ -46,7 +56,11 @@ end
 Flux.@functor MatrixFacorizationModel
 
 
-# sqnorm(x) = sum(abs2, x)
+
+function lossMaskedNorm(Y_hat, Y)
+  err = ( (Y .!= 0) .* (Y .- Y_hat) )
+  return norm( err )
+end
 
 
 """
@@ -55,8 +69,8 @@ For example, if Y indicates votes (1 for upvote and -1 for downvote and 0 for no
 when users voted on an item.
 
 """
-function lossMasked(Y_hat, Y)
-  return norm( (Y .!= 0) .* (Y .- Y_hat))
+function lossMaskedSSE(Y_hat, Y)
+  # return norm( (Y .!= 0) .* (Y .- Y_hat))
   
   # Y_hat = model(Y)
 
@@ -80,7 +94,7 @@ function lossMasked(Y_hat, Y)
 
   err = ( (Y .!= 0) .* (Y .- Y_hat) )
   m = sum((Y .!= 0))
-  return sum( err .^ 2)  / m
+  return sum( err .^ 2)  
 
 # (Y .!= 0)[101,:]
 
@@ -96,22 +110,108 @@ function lossMasked(Y_hat, Y)
 
 end
 
-function penalty(lambda, model)
+# Y_hat = model(Y)
+# penalty(1, model)
+# lossMasked(Y_hat, Y)
+
+function penaltyCNOld(lambda, model)
+  # return 0
   # Lambda for intercepts is 5-times greater than lambda for slopes.
   # Mentioned in the birdwatch papaer: https://github.com/twitter/communitynotes/blob/main/birdwatch_paper_2022_10_27.pdf 
   # m = sum((Y .!= 0))
 
-  # return  lambda/(5) * ( sum(model.W .^ 2) + sum(model.X .^ 2) )  + (lambda) * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-  return  ( 
-    lambda/(5) * ( sum(model.W .^ 2) + sum(model.X .^ 2) )  + (lambda) * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
-  ) ^ (1/2)
+
+
+  # return (lambda) * ( sum(model.W .^ 2) + sum(model.X .^ 2) + sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+
+
+  # return (lambda) * ( sum(model.W .^ 2) + sum(model.X .^ 2) ) + lambda * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+
+
+
+  # return lambda * ( sum(model.W .^ 2) + sum(model.X .^ 2) ) + lambda * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+  return (lambda/5) * ( sum(model.W .^ 2) + sum(model.X .^ 2) ) + lambda * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+
+  # return  (
+  #   ((lambda/5)^2) * ( sum(model.W .^ 2) + sum(model.X .^ 2) )  + (lambda^2) * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+  # ) ^ (1/2)
+  # return  (
+  #   ((lambda/5)^2) * ( sum(model.W .^ 2) + sum(model.X .^ 2) )  + (lambda^2) * ( sum(model.B .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+  # ) ^ (1/2)
 end
+
+function penalty(lambda, model)
+  (n, k) = size(model.W)
+  (k, m) = size(model.X)
+
+  return lambda * m * ( sum(model.W .^ 2) + sum(model.B .^ 2) + sum(model.μ .^ 2 ) ) + lambda * n * ( sum(model.X .^ 2) + sum(model.C .^ 2) + sum(model.μ .^ 2 ) )
+end
+
+function penaltyCN(lambda, model)
+  (n, k) = size(model.W)
+  (k, m) = size(model.X)
+
+  return lambda * m * ( sum(model.W .^ 2) + 5 * sum(model.B .^ 2) + 5 * sum(model.μ .^ 2 ) ) + lambda * n * ( sum(model.X .^ 2) + 5 * sum(model.C .^ 2) + 5 * sum(model.μ .^ 2 ) )
+end
+
+
+
+"""
+
+So I think that a penalty function that just takes the sum of squares of all parameters may be wrong. If the lambda * w_i^2 is be applied to the cost function, then the total penalty
+should be calucate
+  total cost for w_i is
+         ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 + lambda * w_i^2 )
+         = lambda * m * w_i^2 + ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 )
+
+  total cost is
+         ∑_i lambda * m * w_i^2 + ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 )
+         ( lambda * m * ∑_i w_i^2 ) + ∑_i ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 )
+
+  so the total penalty is:
+    ( lambda * m * ∑_i w_i^2 )
+
+  and not
+    ( lambda * ∑_i w_i^2 )
+
+  so we have to multiply 
+
+This is the derivative of the loss function for w_i (using mean cost /2 as loss function instead of total cost) 
+  derivatives are
+    d/dw_i 1/2m * ∑_j (w_i*x_j + b_i + c_j - y_i,j)^2 + lambda * w_i^2 
+      = d/dw_i 1/2m * ∑_j(w_i^2*x_j^2 + 2*w_i*x_j(b_i + c_j - y_i) + (b_i + c_j - y_i,j)^2) + lambda * w_i^2 
+      = 1/2m * ∑_j(2w_i*x_j^2 + 2*x_j(b_i + c_j - y_i,j) + 0) + 2 * lambda * w_i
+      = 1/m * ∑_j(w_i*x_j + b_i + c_j - y_i,j)*x_j + lambda * w_i
+      = 1/m * ∑_j(f(x_j) - y_i,j)*x_j + lambda * w_i
+      = 1/m * ( ∑_j(f(x_j) - y_i,j)*x_j ) + lambda * w_i/m
+
+      we want d/dw_i to have a term lambda * w_i/m, so that if lambda is one, cost is directly proportional to w_i, so the gradient descent wants to resets w_i to zero
+
+
+Adding all the regularization terms
+  cost = (w_i*x_j + b_i + c_j - y_i,j)^2 + lambda * w_i^2 + lambda * x_j^2 + lambda * b_i^2 + lambda * c_j^2
+
+  total cost for w_i is
+         ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 + lambda * ( w_i^2 + x_j^2 + b_i^2 + c_j^2 )
+         = lambda * m * ( w_i^2 + b_i^2 ) + ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 + x_j^2 + c_j^2 )
+
+  total cost is
+         ∑_i lambda * m * ( w_i^2 + b_i^2 ) + ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 + x_j^2 + c_j^2 )
+        = ( lambda * m * ∑_i ( w_i^2 + b_i^2) ) + ∑_i ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 + x_j^2 + c_j^2 )
+        = ( lambda * m * ∑_i (w_i^2 + b_i^2) ) 
+        + ( lambda * n * ∑_j (x_j^2 + c_j^2) ) 
+          + ∑_i ∑_j ( (w_i*x_j + b_i + c_j - y_i,j)^2 )
+"""
+
+
+
 
 """
 Factorize the matrix but without intercepts (all intercepts = 0)
 
 """
 function factorizeMatrixNoIntercepts(Y, k, lambda)
+
   (n, m) = size(Y) 
   model = MatrixFacorizationModelNointercept(n,m,k)
 
@@ -123,23 +223,62 @@ function factorizeMatrixNoIntercepts(Y, k, lambda)
   Optimisers.freeze!(optim.C)
   Optimisers.freeze!(optim.μ)
 
-  train(model, optim, Y)
+  train(model, optim, Y, lambda, false)
 end
 
-function train(model, optim, Y)
+
+
+"""
+Factorize the matrix including intercepts for users and items and a global intercept
+
+"""
+
+function factorizeMatrixIntercepts(Y, k, lambda, altModel)
+
+  (Y, itemMeans) = meanNormalize(Y)
+  (n, m) = size(Y) 
+  model = MatrixFacorizationModel(n,m,k)
+
+  # model = MatrixFacorizationModel(n,m,k)
+
+  opt = Optimisers.Adam(1.0)
+  # opt = Flux.AMSGrad(0.1)
+  optim = Optimisers.setup(opt, model)  # will store optimiser momentum, etc.
+
+  # Optimisers.freeze!(optim.B)
+  # Optimisers.freeze!(optim.C)
+  # lossMasked(model(Y), Y, lambda)
+
+  train(model, optim, Y, lambda, altModel)
+end
+
+
+
+
+function train(model, optim, Y, lambda, altModel)
   losses = []
 
   nEpochs = 100
   p = Progress(nEpochs)
 
+
+  if altModel
+    lossFunction = lossMaskedNorm
+    penaltyFunction = penaltyCNOld
+  else
+    lossFunction = lossMaskedSSE
+    penaltyFunction = penaltyCN
+  end
+
+
   for epoch in 1:nEpochs
     Flux.train!(model, [Y], optim) do m, item
-      lossMasked(m(item), item) + penalty(lambda, m)
+      lossFunction(m(item), item) + penaltyFunction(lambda, m)
     end
 
     # loss = lossMasked(model(Y), Y, lambda, model)
-    lossWithoutPenalty = lossMasked(model(Y), Y)
-    loss = lossWithoutPenalty + penalty(lambda, model)
+    lossWithoutPenalty = lossFunction(model(Y), Y)
+    loss = lossWithoutPenalty + penaltyFunction(lambda, model)
 
     if length(losses) > 0
       lastLoss = losses[end]
@@ -159,7 +298,7 @@ function train(model, optim, Y)
   finalLoss = losses[end]
   @show finalLoss
 
-  finalLossWithoutPenalty = lossMasked(model(Y), Y)
+  finalLossWithoutPenalty = lossFunction(model(Y), Y)
   @show finalLossWithoutPenalty
 
   return model
@@ -167,74 +306,54 @@ function train(model, optim, Y)
 end
 
 
-"""
-Factorize the matrix including intercepts for users and items and a global intercept
-
-"""
-
-function factorizeMatrixIntercepts(Y, k, lambda)
-  (n, m) = size(Y) 
-  model = MatrixFacorizationModel(n,m,k)
-  # model = MatrixFacorizationModel(n,m,k)
-
-  # opt = Optimisers.Adam(1.0)
-  opt = Flux.AMSGrad(0.1)
-  optim = Optimisers.setup(opt, model)  # will store optimiser momentum, etc.
-
-  # Optimisers.freeze!(optim.B)
-  # Optimisers.freeze!(optim.C)
-  # lossMasked(model(Y), Y, lambda)
-
-  train(model, optim, Y)
-end
 
 
 
 
 
-MatrixFacorizationModelNointerceptPrimed(initModel1d) = begin
-  k = 2
-  initW = initModel1d.W
-  initX = initModel1d.X
-  initC = initModel1d.C
-  initU = initModel1d.μ  
+# MatrixFacorizationModelNointerceptPrimed(initModel1d) = begin
+#   k = 2
+#   initW = initModel1d.W
+#   initX = initModel1d.X
+#   initC = initModel1d.C
+#   initU = initModel1d.μ  
 
-  n = size(initW)[1]
-  m = size(initX)[2]
+#   n = size(initW)[1]
+#   m = size(initX)[2]
 
-  newW = [initW[:,1] repeat([1], n)]
-  newX = [initX[1,:] initC[1,:]]
-
-
-  return MatrixFacorizationModel(
-    # rand(n,k), rand(n,1), rand(k,m), rand(m,1)
-    newW, initModel1d.B, newX', repeat([0],m)', initU
-
-    # newW, repeat([0],n), newX', repeat([0],m)', initU
-  )
-end
+#   newW = [initW[:,1] repeat([1], n)]
+#   newX = [initX[1,:] initC[1,:]]
 
 
-function factorizeMatrixPrimed(Y, initModel1d, lambda)
-  (n, m) = size(Y) 
-  model = MatrixFacorizationModelNointerceptPrimed(initModel1d)
-  # lossMasked(model(Y), Y)
+#   return MatrixFacorizationModel(
+#     # rand(n,k), rand(n,1), rand(k,m), rand(m,1)
+#     newW, initModel1d.B, newX', repeat([0],m)', initU
 
-  lossMasked(model(Y), Y)
-  penalty(lambda, model)
-
-  # lossMasked(initModel1d(Y), Y)
+#     # newW, repeat([0],n), newX', repeat([0],m)', initU
+#   )
+# end
 
 
-  # opt = Optimisers.Adam(0.1)
-  opt = Flux.AMSGrad(0.1)
-  optim = Optimisers.setup(opt, model)  # will store optimiser momentum, etc.
+# function factorizeMatrixPrimed(Y, initModel1d, lambda)
+#   (n, m) = size(Y) 
+#   model = MatrixFacorizationModelNointerceptPrimed(initModel1d)
+#   # lossMasked(model(Y), Y)
 
-  Optimisers.freeze!(optim.B)
-  Optimisers.freeze!(optim.C)
+#   lossMasked(model(Y), Y)
+#   penalty(lambda, model)
 
-  train(model, optim, Y)
+#   # lossMasked(initModel1d(Y), Y)
 
-end
+
+#   # opt = Optimisers.Adam(0.1)
+#   opt = Flux.AMSGrad(0.1)
+#   optim = Optimisers.setup(opt, model)  # will store optimiser momentum, etc.
+
+#   Optimisers.freeze!(optim.B)
+#   Optimisers.freeze!(optim.C)
+
+#   train(model, optim, Y, lambda)
+
+# end
 
 
