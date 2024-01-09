@@ -148,12 +148,7 @@ using Random, Distributions
 
 
 createTrainingSet = function(n, m, baseProb)
-
-
-# profile1 = (
-# 	rates = [3.0 .25; .25 2.0],
-# 	probabilities = [.99 .85; .15 .01]
-# )
+	n = trunc(Int,n/8)
 
 	p1 = profileToMatrix(profile1)
 	p2 = profileToMatrix(profile2)
@@ -161,7 +156,8 @@ createTrainingSet = function(n, m, baseProb)
 	p4 = profileToMatrix(profile4)
 
 	# users = repeat([p1 p2 p3 p4 p3 p4 p4 p4], outer=[1,trunc(Int, n)])
-	users = repeat([p1 p2 p3 p4 p1 p2 p3 p4], outer=[1,trunc(Int, n)])
+	users = repeat([p1 p2 p3 p4 p1 p2 p3 p4], outer=[1,n])
+
 
 	t1 = typeToMatrix(type1)
 	t2 = typeToMatrix(type2)
@@ -175,6 +171,7 @@ createTrainingSet = function(n, m, baseProb)
 	# t4*p1
 
 
+	m = trunc(Int,m/4)
 
 	items = repeat([t1; t2; t3; t4],m)
 
@@ -191,7 +188,7 @@ createTrainingSet = function(n, m, baseProb)
 	userColors = repeat([:magenta; :red; :cyan; :blue; :magenta; :red; :cyan; :blue; ],n)
 	# userColors = repeat([:magenta; :red; :cyan; :blue; :cyan; :blue; :blue; :blue; ],n)
 	itemColors = repeat([:magenta; :red; :cyan; :blue],m)
-
+	
 	return (users=users, items=items, votes=votes', upvotes=upvotes', userColors=userColors, itemColors=itemColors)
 
 end

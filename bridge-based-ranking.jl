@@ -20,7 +20,7 @@ n = 400
 m = 200
 
 Random.seed!(6)
-s = createTrainingSet(trunc(Int,n/8), trunc(Int,m/8),.1); 
+s = createTrainingSet(n, m,.1); 
 Y = s.upvotes .+ s.votes .* (s.upvotes .- 1);
 # M = s.votes
 
@@ -38,6 +38,8 @@ itemColorIndex = Dict(
 	:red => "Unhelpful Left",
 	:title => "Item Type"
 )
+model = factorizeMatrixNoIntercepts(Y, 2, lambda, true)
+polarityPlot(model.W, model.X, s.userColors, s.itemColors, userColorIndex = userColorIndex, itemColorIndex = itemColorIndex, title="2D Bridge-Based Ranking: Synthetic Data")
 
 
 

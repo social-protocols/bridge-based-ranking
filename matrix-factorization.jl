@@ -224,8 +224,8 @@ function factorizeMatrixIntercepts(Y, k, lambda, altModel)
 
   # model = MatrixFacorizationModel(n,m,k)
 
-  opt = Optimisers.Adam(1.0)
-  # opt = Flux.AMSGrad(0.1)
+  # opt = Optimisers.Adam(1.0)
+  opt = Flux.AMSGrad(0.1)
   optim = Optimisers.setup(opt, model)  # will store optimiser momentum, etc.
 
   # Optimisers.freeze!(optim.B)
