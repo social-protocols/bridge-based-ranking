@@ -120,6 +120,12 @@ begin
 	# 	    arrowcolor = [:red], linecolor = [:red], linestyle=:dash, label="arrow 1")
 
 	save("plots/community-notes-3d.png", figure)
+	rotate_cam!(axis.scene, 30 * 2*pi/360, 0, 0) 
+	save("plots/community-notes-3d-2.png", figure)
+	rotate_cam!(axis.scene, 30 * 3*pi/360, 0, 0) 
+	save("plots/community-notes-3d-3.png", figure)
+	rotate_cam!(axis.scene, 30 * 3*pi/360, 0, 0) 
+	save("plots/community-notes-3d-4.png", figure)
 
 
 	cam = cam3d!(axis)
@@ -133,9 +139,9 @@ begin
 
 	GLMakie.record(
 	    figure,
-	    "plots/3d-animation.mp4",
-	    1:40:2000;
-	    framerate = 15,
+	    "plots/3d-animation.gif",
+	    1:40:1000;
+	    framerate = 10,
 	) do a
 			rotate_cam!(axis.scene, 10 * 2*pi/360, 0, 0) 
 
