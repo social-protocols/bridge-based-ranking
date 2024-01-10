@@ -17,9 +17,6 @@ itemColorIndex = Dict(
 
 (Y, userColors, itemColors, userIds, itemIds) = loadCommunityNotesRatingsMatrix(table="sampleDataSet3", coreOnly=false);
 
-# (Y, userColors, itemColors, userIds, itemIds) = loadCommunityNotesRatingsMatrix(table="sampleDataSet3");
-include("matrix-factorization.jl")
-
 
 lambda1d = .03
 lambda = .01
@@ -46,7 +43,7 @@ begin
 	model = factorizeMatrixNoIntercepts(Matrix(Y), 2, lambda, true);
 	# modelCNlarge2dCoreOnly = model
 	# modelCNlarge2d = model
-	model = modelCNlarge2d
+	# model = modelCNlarge2d
 
 	(bestBasis, loss) = findLowEntropyDimension(model.W)
 
@@ -55,20 +52,23 @@ begin
 
 	dimensionEntropy(model.W * bestBasis)
 
-	f = polarityPlotWithBasis(model.W, model.X, model.W * b, b' * model.X, map(c -> :gray, model.W[:,1]), itemColors, itemColorIndex = itemColorIndex, title="2d Bridge-Based Ranking: Synthetic Data")
+	b[:,1] = b[:,1] * swapLeftRight(b' * model.X, itemIds)
+
+
+	f = polarityPlotWithBasis(model.W, model.X, model.W * b, b' * model.X, map(c -> :gray, model.W[:,1]), itemColors, itemColorIndex = itemColorIndex, title="2d Bridge-Based Ranking: Community Notes")
 	save("plots/community-notes-large-with-basis-2d.png", f)
 	# scatter(f[3,2], entropyChartData)
 
-	f = polarityPlot(model.W * b, b' * model.X, map(c -> :gray, model.W[:,1]), itemColors, itemColorIndex=itemColorIndex, title="2D Bridge-Based Ranking: Community Notes (Sample)")
+	f = polarityPlot(model.W * b, b' * model.X, map(c -> :gray, model.W[:,1]), itemColors, itemColorIndex=itemColorIndex, title="2D Bridge-Based Ranking: Community Notes")
 	save("plots/community-notes-large-2d.png", f)
 
 	score2d = model.X' * bestBasis
 
-	f = polarityPlotUsers(model.W * b, map(c -> :gray, model.W[:,1]), title="Community Notes Polarity Plot (Users)")
+	f = polarityPlotUsers(model.W * b, map(c -> :gray, model.W[:,1]), title="Community Notes 2D Polarity Plot (Users)")
 	save("plots/community-notes-large-users-2d.png", f)
 
 
-	f = polarityPlotItems(b' * model.X, itemColors,  itemColorIndex=itemColorIndex, title="Community Notes Polarity Plot (Items)")
+	f = polarityPlotItems(b' * model.X, itemColors,  itemColorIndex=itemColorIndex, title="Community Notes 2d Polarity Plot (Items)")
 	save("plots/community-notes-large-items-2d.png", f)
 
 end
@@ -78,14 +78,13 @@ end
 begin
 	# include("matrix-factorization.jl")
 	model = factorizeMatrixNoIntercepts(Matrix(Y), 3, lambda, true);
-	modelCNlarge3d = model
+	# modelCNlarge3d = model
 	# model = modelCNlarge3d
 
 	(bestBasis, loss) = findLowEntropyDimension(model.W)
 	(worstBasis, loss) = findHighEntropyDimension(model.W)
 
-	orthogonal = normalize(cross(bestBasis, worstBasis))
-	b2 = normalize(cross(orthogonal, bestBasis))
+	b2 = normalize(cross(bestBasis, worstBasis))
 	b3 = cross(b2, bestBasis)
 	b = [b2 b3 bestBasis]
 
@@ -94,21 +93,56 @@ begin
 	W = model.W * b
 	(worstBasis, loss) = findHighEntropyDimension(W)
 
-	f = Figure()
+	# f = Figure()
+	# b = Axis3(f[1, 1])
 
+	# s = Makie.Scene()
+	# scene = Scene(f)
+	# ax = Axis3(f)
+
+	itemColors = map(c -> :gray, W[:,1])
+
+
+# fig = GLMakie.Figure()
+# ax = GLMakie.Axis3(fig[1, 1])
 	# s1 = scatter(model.W[:,1], model.W[:,2], model.W[:,3], markersize = 10, marker = :utriangle ,color=map(c -> (:gray, .2), model.W[:,1]), transparency=true)
-	s1, a, p = scatter(W[:,1], W[:,2], W[:,3], markersize = 10, marker = :utriangle ,color=map(c -> (:gray, .2), W[:,1]), transparency=true)
+	figure, axis, plot = scatter(W[:,1], W[:,2], W[:,3], markersize = 10, marker = :utriangle ,color=map(c -> (:gray, .2), W[:,1]), transparency=true)
 
+	# relative_projection = Makie.camrelative(axis.scene);
+	# GLMakie.rotate!(s1, 0, -.3pi)
 
 	a1 = arrows!([0], [0], [0], [0], [0], [1], arrowsize = .15, lengthscale = 1,
 		    arrowcolor = [:blue], linecolor = [:blue], linestyle=:dash, label="arrow 1")
 
 
-	b = worstBasis
-	a1 = arrows!([0], [0], [0], b[1,:], b[2,:], b[3,:], arrowsize = .15, lengthscale = 1,
-		    arrowcolor = [:red], linecolor = [:red], linestyle=:dash, label="arrow 1")
+	# b = worstBasis
+	# a1 = arrows!([0], [0], [0], b[1,:], b[2,:], b[3,:], arrowsize = .15, lengthscale = 1,
+	# 	    arrowcolor = [:red], linecolor = [:red], linestyle=:dash, label="arrow 1")
 
-	save("plots/community-notes-3d.png", s1)
+	save("plots/community-notes-3d.png", figure)
+
+
+	cam = cam3d!(axis)
+	    		# figure
+# figure
+			# rotate_cam!(axis.scene, 0, 0, 10 * 2*pi/360) 
+			# rotate_cam!(axis.scene, 0, 10 * 2*pi/360, 0) 
+			rotate_cam!(axis.scene, -20 * 2*pi/360, 0, 0) 
+
+    # n_frames = 20
+
+	GLMakie.record(
+	    figure,
+	    "plots/3d-animation.mp4",
+	    1:40:2000;
+	    framerate = 15,
+	) do a
+			rotate_cam!(axis.scene, 10 * 2*pi/360, 0, 0) 
+
+	end
+
+    		# Makie.rotate!(figure.scene, 1,2,0)
+
 
 	score3d = model.X' * bestBasis
 
