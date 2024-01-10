@@ -100,7 +100,7 @@ begin
 	# scene = Scene(f)
 	# ax = Axis3(f)
 
-	itemColors = map(c -> :gray, W[:,1])
+	# itemColors = map(c -> :gray, W[:,1])
 
 
 # fig = GLMakie.Figure()
